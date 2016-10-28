@@ -312,6 +312,7 @@ static void rbc_mesh_event_handler(rbc_mesh_event_t* p_evt)
         case RBC_MESH_EVENT_TYPE_TX:
         case RBC_MESH_EVENT_TYPE_INITIALIZED:
         case RBC_MESH_EVENT_TYPE_DFU_NEW_FW_AVAILABLE:
+        	// Do some DFU Stuff
         case RBC_MESH_EVENT_TYPE_DFU_RELAY_REQ:
         case RBC_MESH_EVENT_TYPE_DFU_SOURCE_REQ:
         case RBC_MESH_EVENT_TYPE_DFU_START:
