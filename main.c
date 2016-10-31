@@ -147,7 +147,7 @@ static void gap_params_init(void)
     APP_ERROR_CHECK(err_code);
 
     char name[64];
-    sprintf(name, "ble_sonoff #%d",
+    sprintf(name, "sdl#%d",
         ((uint16_t) my_addr.addr[4] << 8) | (my_addr.addr[5]));
 
     err_code = sd_ble_gap_device_name_set(&sec_mode, (uint8_t*) name, strlen(name));

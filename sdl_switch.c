@@ -13,9 +13,11 @@
 #include "app_timer.h"
 #include "nrf_drv_gpiote.h"
 #include "rbc_mesh.h"
+#include "include/sdl_config.h"
 #include "include/sdl_switch.h"
 
 static app_timer_id_t delay_timer_id;
+extern sdl_config_t device_config;
 
 static void button_timer_handler(void *p_context)
 {
@@ -32,7 +34,7 @@ static void button_timer_handler(void *p_context)
 		mesh_data[0]=0;
 	}
 
-	rbc_mesh_value_set(0,mesh_data,1);
+	rbc_mesh_value_set(device_config.value_handle,mesh_data,1);
 }
 
 static void gpiote_event_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
