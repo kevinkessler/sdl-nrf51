@@ -18,14 +18,23 @@ USE_DFU              ?= "no"
 # Define relative paths to SDK components
 #------------------------------------------------------------------------------
 
-SDK_BASE      := D:/NRF5/SDK9
-COMPONENTS    := $(SDK_BASE)/components
-TEMPLATE_PATH := $(COMPONENTS)/toolchain/gcc
-GNU_INSTALL_ROOT=D:/ARM/GNU Tools ARM Embedded/5.2 2015q4
-GNU_PREFIX = arm-none-eabi
-MESH_BASE     := D:/NRF5/nRF51-ble-bcast-mesh/nRF51
-OPENOCD_BASE  := D:/NRF5/openocd-0.9.0
-NRFJPROG_BASE := C:/Program Files (x86)/Nordic Semiconductor/nrf5x
+ifeq ($(OS),Windows_NT)
+	SDK_BASE      := D:/NRF5/SDK9
+	COMPONENTS    := $(SDK_BASE)/components
+	TEMPLATE_PATH := $(COMPONENTS)/toolchain/gcc
+	GNU_INSTALL_ROOT=D:/ARM/GNU Tools ARM Embedded/5.2 2015q4
+	MESH_BASE     := D:/NRF5/nRF51-ble-bcast-mesh/nRF51
+	OPENOCD_BASE  := D:/NRF5/openocd-0.9.0
+	NRFJPROG_BASE := C:/Program Files (x86)/Nordic Semiconductor/nrf5x/bin
+else
+	SDK_BASE      := ${HOME}/nrf5/SDK9
+	COMPONENTS    := $(SDK_BASE)/components
+	TEMPLATE_PATH := $(COMPONENTS)/toolchain/gcc
+	GNU_INSTALL_ROOT := /usr/local/gcc-arm-none-eabi-5_2-2015q4
+	MESH_BASE     := ${HOME}/nrf5/nRF51-ble-bcast-mesh/nRF51
+	OPENOCD_BASE  := ${HOME}/nrf5/openocd-0.9.0
+	NRFJPROG_BASE := ${HOME}/nrf5/nrfjprog
+endif
 
 ifeq ($(USE_DFU), "yes")
 	LINKER_SCRIPT := ./gcc_nrf51_s110_xxac.ld
@@ -75,7 +84,8 @@ else
 endif
 
 # Toolchain commands
-CC       := "$(GNU_INSTALL_ROOT)/bin/$(GNU_PREFIX)-gcc"
+GNU_PREFIX = arm-none-eabi
+CC       := $(GNU_INSTALL_ROOT)/bin/$(GNU_PREFIX)-gcc
 AS       := "$(GNU_INSTALL_ROOT)/bin/$(GNU_PREFIX)-as"
 AR       := "$(GNU_INSTALL_ROOT)/bin/$(GNU_PREFIX)-ar" -r
 LD       := "$(GNU_INSTALL_ROOT)/bin/$(GNU_PREFIX)-ld"
@@ -89,7 +99,7 @@ CP       := cp
 GENDAT   := ./gen_dat
 GENZIP   := zip
 OPENOCD  := "$(OPENOCD_BASE)/bin-x64/openocd"
-NRFJPROG := "$(NRFJPROG_BASE)/bin/nrfjprog.exe"
+NRFJPROG := "$(NRFJPROG_BASE)/nrfjprog"
 
 BUILDMETRICS  := ./buildmetrics.py
 
@@ -323,6 +333,6 @@ flash_softdevice:
 flash:
 #	$(NO_ECHO)$(OPENOCD) -s $(OPENOCD_BASE)/scripts -f interface/stlink-v2.cfg -f target/nrf51.cfg -c "program $(OUTPUT_BINARY_DIRECTORY)/$(OUTPUT_NAME).hex verify reset exit"
 	$(NO_ECHO) $(NRFJPROG) --erasepage 0x00000-0x3fc00
-	$(NO_ECHO) $(NRFJPROG) --program D:/NRF5/SDK9/components/softdevice/s110/hex/s110_softdevice.hex
+	$(NO_ECHO) $(NRFJPROG) --program $(COMPONENTS)/softdevice/s110/hex/s110_softdevice.hex
 	$(NO_ECHO) $(NRFJPROG) --program $(OUTPUT_BINARY_DIRECTORY)/$(OUTPUT_NAME).hex
 	$(NO_ECHO) $(NRFJPROG) --reset
