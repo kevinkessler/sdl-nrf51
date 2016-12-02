@@ -16,6 +16,12 @@
 #include "app_error.h"
 #include "nrf_gpio.h"
 #include "ble_advdata.h"
+#include "ble_hci.h"
+#include "nrf_delay.h"
+#include "ble_dfu.h"
+#include "dfu_app_handler.h"
+#include "device_manager.h"
+#include "pstorage.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -53,10 +59,14 @@ ble_sdl_service_t sdl_service;
 sdl_config_t device_config;
 ble_gap_adv_params_t ble_adv_params;
 
+static ble_dfu_t m_dfus;
+static dm_application_instance_t dm_handle;
 
 // Forward Declarations
 void sd_ble_evt_handler(ble_evt_t* p_ble_evt);
 void sys_evt_handler(uint32_t sd_evt);
+static uint32_t device_manager_evt_handler(dm_handle_t const * p_handle,dm_event_t const  * p_event, ret_code_t event_result);
+static void app_context_load(dm_handle_t const * p_handle);
 
 /** @brief General error handler. */
 static inline void error_loop(void)
@@ -115,10 +125,10 @@ static void reset_prepare(void)
     else
     {
         // If not connected, the device will be advertising. Hence stop the advertising.
-        advertising_stop();
+        err_code = sd_ble_gap_adv_stop();
+        APP_ERROR_CHECK(err_code);
     }
-    err_code = ble_conn_params_stop();
-    APP_ERROR_CHECK(err_code);
+
     nrf_delay_ms(500);
 }
 
@@ -215,8 +225,24 @@ static void hw_init(void)
 
 static void services_init(void)
 {
-    sdl_service_init(&sdl_service);
-    sdl_service_char_init(&sdl_service);
+	uint32_t err_code;
+
+	sdl_service_init(&sdl_service);
+	sdl_service_char_init(&sdl_service);
+
+	// Initialize DFU Services
+	ble_dfu_init_t   dfus_init;
+
+	memset(&dfus_init, 0, sizeof(dfus_init));
+	dfus_init.evt_handler  = dfu_app_on_dfu_evt;
+	dfus_init.error_handler = NULL;
+	dfus_init.evt_handler = dfu_app_on_dfu_evt;
+	dfus_init.revision = 0x0001;
+
+    err_code = ble_dfu_init(&m_dfus, &dfus_init);
+    APP_ERROR_CHECK(err_code);
+    dfu_app_reset_prepare_set(reset_prepare);
+
 }
 
 
@@ -250,8 +276,92 @@ static void advertising_init(void)
 
 }
 
+static void device_manager_init()
+{
+    uint32_t               err_code;
+    dm_init_param_t        init_param = {.clear_persistent_data = 0};
+    dm_application_param_t register_param;
+
+    // Initialize persistent storage module.
+    err_code = pstorage_init();
+    APP_ERROR_CHECK(err_code);
+
+    err_code = dm_init(&init_param);
+    APP_ERROR_CHECK(err_code);
+
+    memset(&register_param.sec_param, 0, sizeof(ble_gap_sec_params_t));
+
+    register_param.sec_param.bond = 1;						/**< Perform bonding. */
+    register_param.sec_param.mitm = 0;						/**< Man In The Middle protection not required. */
+    register_param.sec_param.io_caps = BLE_GAP_IO_CAPS_NONE;/**< No I/O capabilities. */
+    register_param.sec_param.oob = 0;						/**< Out Of Band data not available. */
+    register_param.sec_param.min_key_size = 7;				/**< Minimum encryption key size. */
+    register_param.sec_param.max_key_size = 16;				/**< Maximum encryption key size. */
+
+    register_param.evt_handler = device_manager_evt_handler;
+    register_param.service_type = DM_PROTOCOL_CNTXT_GATT_SRVR_ID;
+
+    err_code = dm_register(&dm_handle, &register_param);
+    APP_ERROR_CHECK(err_code);
+}
 
 /* ------------------------------------------Event Handlers------------------------------------------------------------ */
+static uint32_t device_manager_evt_handler(dm_handle_t const * p_handle,
+                                           dm_event_t const  * p_event,
+                                           ret_code_t        event_result)
+{
+    APP_ERROR_CHECK(event_result);
+
+    if (p_event->event_id == DM_EVT_LINK_SECURED)
+    {
+        app_context_load(p_handle);
+    }
+
+    return NRF_SUCCESS;
+}
+
+static void app_context_load(dm_handle_t const * p_handle)
+{
+    uint32_t                 err_code;
+    static uint32_t          context_data;
+    dm_application_context_t context;
+
+    context.len    = sizeof(context_data);
+    context.p_data = (uint8_t *)&context_data;
+
+    err_code = dm_application_context_get(p_handle, &context);
+    if (err_code == NRF_SUCCESS)
+    {
+        // Send Service Changed Indication if ATT table has changed.
+        if ((context_data & (DFU_APP_ATT_TABLE_CHANGED << DFU_APP_ATT_TABLE_POS)) != 0)
+        {
+        	/** 0x000C Handle of first application specific service when when service changed characteristic is present. */
+        	/**0xFFFF Max handle value in BLE. */
+            err_code = sd_ble_gatts_service_changed(dm_handle, 0x000C, 0xFFFF);
+            if ((err_code != NRF_SUCCESS) &&
+                (err_code != BLE_ERROR_INVALID_CONN_HANDLE) &&
+                (err_code != NRF_ERROR_INVALID_STATE) &&
+                (err_code != BLE_ERROR_NO_TX_BUFFERS) &&
+                (err_code != NRF_ERROR_BUSY) &&
+                (err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING))
+            {
+                APP_ERROR_HANDLER(err_code);
+            }
+        }
+
+        err_code = dm_application_context_delete(p_handle);
+        APP_ERROR_CHECK(err_code);
+    }
+    else if (err_code == DM_NO_APP_CONTEXT)
+    {
+        // No context available. Ignore.
+    }
+    else
+    {
+        APP_ERROR_HANDLER(err_code);
+    }
+}
+
 static void ble_gatts_event_handler(ble_evt_t* evt)
 {
 	uint16_t value;
@@ -362,6 +472,7 @@ void sd_ble_evt_handler(ble_evt_t* p_ble_evt)
 {
 
     rbc_mesh_ble_evt_handler(p_ble_evt);
+    ble_dfu_on_ble_evt(&m_dfus, p_ble_evt);
     nrf_adv_conn_evt_handler(p_ble_evt);
 }
 
@@ -383,6 +494,7 @@ int main(void)
     read_device_configuration(&device_config);
     timers_init();
 	ble_stack_init();
+	device_manager_init();
 	gap_params_init();
 	mesh_init();
 	hw_init();

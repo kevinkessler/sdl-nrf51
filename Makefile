@@ -148,16 +148,21 @@ C_SOURCE_FILES += $(MESH_BASE)/rbc_mesh/src/mesh_packet.c
 C_SOURCE_FILES += $(MESH_BASE)/rbc_mesh/src/rand.c
 
 C_SOURCE_FILES += $(COMPONENTS)/ble/common/ble_advdata.c
+C_SOURCE_FILES += $(COMPONENTS)/ble/ble_services/ble_dfu/ble_dfu.c
+C_SOURCE_FILES += $(COMPONENTS)/ble/device_manager/device_manager_peripheral.c
 C_SOURCE_FILES += $(COMPONENTS)/toolchain/system_nrf51.c
 C_SOURCE_FILES += $(COMPONENTS)/softdevice/common/softdevice_handler/softdevice_handler.c
 C_SOURCE_FILES += $(COMPONENTS)/softdevice/common/softdevice_handler/softdevice_handler_appsh.c
 C_SOURCE_FILES += $(COMPONENTS)/drivers_nrf/uart/app_uart.c
 C_SOURCE_FILES += $(COMPONENTS)/drivers_nrf/gpiote/nrf_drv_gpiote.c
+C_SOURCE_FILES += $(COMPONENTS)/drivers_nrf/pstorage/pstorage.c
 C_SOURCE_FILES += $(COMPONENTS)/libraries/timer/app_timer.c
 C_SOURCE_FILES += $(COMPONENTS)/libraries/timer/app_timer_appsh.c
+C_SOURCE_FILES += $(COMPONENTS)/libraries/bootloader_dfu/dfu_app_handler.c
+C_SOURCE_FILES += $(COMPONENTS)/libraries/bootloader_dfu/bootloader_util.c
 C_SOURCE_FILES += $(COMPONENTS)/libraries/scheduler/app_scheduler.c
 C_SOURCE_FILES += $(COMPONENTS)/drivers_nrf/common/nrf_drv_common.c
-
+C_SOURCE_FILES += $(COMPONENTS)/drivers_nrf/hal/nrf_delay.c
 
 # assembly files common to all targets
 ASM_SOURCE_FILES  += $(COMPONENTS)/toolchain/gcc/gcc_startup_nrf51.s
@@ -175,6 +180,8 @@ INC_PATHS += -I$(COMPONENTS)/softdevice/common/softdevice_handler
 INC_PATHS += -I$(COMPONENTS)/toolchain/gcc
 INC_PATHS += -I$(COMPONENTS)/libraries/util
 INC_PATHS += -I$(COMPONENTS)/ble/common
+INC_PATHS += -I$(COMPONENTS)/ble/ble_services/ble_dfu
+INC_PATHS += -I$(COMPONENTS)/ble/device_manager
 INC_PATHS += -I$(COMPONENTS)/drivers_nrf/hal
 INC_PATHS += -I$(COMPONENTS)/drivers_nrf/spi_slave
 INC_PATHS += -I$(COMPONENTS)/drivers_nrf/uart
@@ -182,8 +189,11 @@ INC_PATHS += -I$(COMPONENTS)/drivers_nrf/gpiote
 INC_PATHS += -I$(COMPONENTS)/drivers_nrf/common
 INC_PATHS += -I$(COMPONENTS)/drivers_nrf/pstorage
 INC_PATHS += -I$(COMPONENTS)/drivers_nrf/ble_flash
+INC_PATHS += -I$(COMPONENTS)/drivers_nrf/hal
 INC_PATHS += -I$(COMPONENTS)/libraries/timer
 INC_PATHS += -I$(COMPONENTS)/libraries/scheduler
+INC_PATHS += -I$(COMPONENTS)/libraries/bootloader_dfu
+INC_PATHS += -I$(COMPONENTS)/libraries/trace
 INC_PATHS += -I$(COMPONENTS)/drivers_nrf/pstorage/config
 INC_PATHS += -I$(COMPONENTS)/toolchain
 INC_PATHS += -I$(COMPONENTS)/device
@@ -196,7 +206,7 @@ OUTPUT_BINARY_DIRECTORY = $(OBJECT_DIRECTORY)
 BUILD_DIRECTORIES := $(sort $(OBJECT_DIRECTORY) $(OUTPUT_BINARY_DIRECTORY) $(LISTING_DIRECTORY) )
 
 ifeq ($(BUILD_TYPE),debug)
-  DEBUG_FLAGS += -D DEBUG -g -O0
+  DEBUG_FLAGS += -D DEBUG -g -O0 -fomit-frame-pointer
 else
   DEBUG_FLAGS += -D NDEBUG -O3
 endif
