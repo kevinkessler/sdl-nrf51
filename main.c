@@ -102,6 +102,25 @@ void HardFault_Handler(void)
     error_loop();
 }
 
+static void reset_prepare(void)
+{
+    uint32_t err_code;
+    if (sdl_service.conn_handle != BLE_CONN_HANDLE_INVALID)
+    {
+        // Disconnect from peer.
+        err_code = sd_ble_gap_disconnect(sdl_service.conn_handle, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
+        APP_ERROR_CHECK(err_code);
+
+    }
+    else
+    {
+        // If not connected, the device will be advertising. Hence stop the advertising.
+        advertising_stop();
+    }
+    err_code = ble_conn_params_stop();
+    APP_ERROR_CHECK(err_code);
+    nrf_delay_ms(500);
+}
 
 /* ------------------------------------------Initialization Routines------------------------------------------------------------ */
 static void timers_init(void)
