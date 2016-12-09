@@ -22,7 +22,7 @@ ifeq ($(OS),Windows_NT)
 	SDK_BASE      := D:/NRF5/SDK9
 	COMPONENTS    := $(SDK_BASE)/components
 	TEMPLATE_PATH := $(COMPONENTS)/toolchain/gcc
-	GNU_INSTALL_ROOT=D:/ARM/GNU Tools ARM Embedded/5.2 2015q4
+	GNU_INSTALL_ROOT=D:/ARM/GNUTOOLS/5.2-2015q4
 	MESH_BASE     := D:/NRF5/nRF51-ble-bcast-mesh/nRF51
 	OPENOCD_BASE  := D:/NRF5/openocd-0.9.0
 	NRFJPROG_BASE := C:/Program Files (x86)/Nordic Semiconductor/nrf5x/bin
@@ -56,7 +56,7 @@ else
 	DFU_STRING=""
 endif
 
-OUTPUT_NAME := rbc_mesh$(SERIAL_STRING)$(DFU_STRING)_$(TARGET_BOARD)
+OUTPUT_NAME := sdl_all
 
 
 #------------------------------------------------------------------------------
