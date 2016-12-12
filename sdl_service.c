@@ -14,7 +14,7 @@
 #include "app_error.h"
 #include "SEGGER_RTT.h"
 
-void sdl_service_char_init(ble_sdl_service_t *sdl_service)
+void sdl_service_char_init(ble_sdl_service_t *sdl_service, sdl_config_t *config)
 {
 	uint32_t err_code;
 
@@ -36,7 +36,7 @@ void sdl_service_char_init(ble_sdl_service_t *sdl_service)
 	attr_char_value.p_attr_md   = &attr_md;
 	attr_char_value.max_len = 2;
 	attr_char_value.init_len = 2;
-	uint16_t value=0x1234;
+	uint16_t value=config->value_handle;
 	attr_char_value.p_value=(uint8_t *)&value;
 
 	ble_gatts_char_md_t char_md;

@@ -5,11 +5,6 @@
 # Selectable build options
 #------------------------------------------------------------------------------
 
-TARGET_BOARD         ?= BOARD_PCA10003
-#TARGET_BOARD         ?= BOARD_PCA10001
-#TARGET_BOARD         ?= BOARD_PCA10028
-#TARGET_BOARD         ?= BOARD_PCA10031
-
 USE_RBC_MESH_SERIAL  ?= "no"
 USE_BUTTONS          ?= "no"
 USE_DFU              ?= "no"
@@ -42,7 +37,7 @@ else
 	LINKER_SCRIPT := ./gcc_nrf51_s110_xxac_dfu.ld
 endif
 
-LINKER_SCRIPT := ./gcc_nrf51_s110_xxac.ld
+LINKER_SCRIPT := ./gcc_nrf51_s110_xxac_dfu.ld
 
 ifeq ($(USE_RBC_MESH_SERIAL), "yes")
 	SERIAL_STRING := "_serial"
@@ -56,7 +51,7 @@ else
 	DFU_STRING=""
 endif
 
-OUTPUT_NAME := sdl_all
+OUTPUT_NAME := sdl-all
 
 
 #------------------------------------------------------------------------------
@@ -194,7 +189,6 @@ INC_PATHS += -I$(COMPONENTS)/libraries/timer
 INC_PATHS += -I$(COMPONENTS)/libraries/scheduler
 INC_PATHS += -I$(COMPONENTS)/libraries/bootloader_dfu
 INC_PATHS += -I$(COMPONENTS)/libraries/trace
-INC_PATHS += -I$(COMPONENTS)/drivers_nrf/pstorage/config
 INC_PATHS += -I$(COMPONENTS)/toolchain
 INC_PATHS += -I$(COMPONENTS)/device
 
@@ -218,7 +212,6 @@ CFLAGS += -D NRF51
 CFLAGS += -D BLE_STACK_SUPPORT_REQD
 CFLAGS += -D S110
 CFLAGS += -D SOFTDEVICE_PRESENT
-CFLAGS += -D $(TARGET_BOARD)
 CFLAGS += -mcpu=cortex-m0
 CFLAGS += -mthumb -mabi=aapcs --std=gnu99
 CFLAGS += -Wall -Werror
@@ -242,7 +235,7 @@ ASMFLAGS += -D NRF51
 ASMFLAGS += -D BLE_STACK_SUPPORT_REQD
 ASMFLAGS += -D S110
 ASMFLAGS += -D SOFTDEVICE_PRESENT
-ASMFLAGS += -D $(TARGET_BOARD)
+
 
 C_SOURCE_FILE_NAMES = $(notdir $(C_SOURCE_FILES))
 C_PATHS = $(call remduplicates, $(dir $(C_SOURCE_FILES) ) )
@@ -270,7 +263,6 @@ all: $(BUILD_DIRECTORIES) $(OBJECTS)
 	@echo "build project: $(OUTPUT_NAME)"
 	@echo "build type:    $(BUILD_TYPE)"
 	@echo "build with:    $(TOOLCHAIN_BASE)"
-	@echo "build target:  $(TARGET_BOARD)"
 	@echo "build options  --"
 	@echo "               USE_RBC_MESH_SERIAL $(USE_RBC_MESH_SERIAL)"
 	@echo "               USE_DFU             $(USE_DFU)"
@@ -342,7 +334,8 @@ flash_softdevice:
 
 flash:
 #	$(NO_ECHO)$(OPENOCD) -s $(OPENOCD_BASE)/scripts -f interface/stlink-v2.cfg -f target/nrf51.cfg -c "program $(OUTPUT_BINARY_DIRECTORY)/$(OUTPUT_NAME).hex verify reset exit"
-	$(NO_ECHO) $(NRFJPROG) --erasepage 0x00000-0x3fc00
+#	$(NO_ECHO) $(NRFJPROG) --erasepage 0x00000-0x3fc00
+	$(NO_ECHO) $(NRFJPROG) --eraseall
 	$(NO_ECHO) $(NRFJPROG) --program $(COMPONENTS)/softdevice/s110/hex/s110_softdevice.hex
 	$(NO_ECHO) $(NRFJPROG) --program $(OUTPUT_BINARY_DIRECTORY)/$(OUTPUT_NAME).hex
 	$(NO_ECHO) $(NRFJPROG) --reset

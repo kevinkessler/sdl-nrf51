@@ -14,26 +14,55 @@
 #include "app_scheduler.h"
 #include "softdevice_handler_appsh.h"
 #include "nrf_gpio.h"
+#include "pstorage.h"
+
 #include "SEGGER_RTT.h"
 
+#define BLOCK_SIZE 16
 
-volatile uint8_t flash_wait=0;
+/* Write data must be available even after the function exits, so it can't be on the stack*/
+static uint8_t data_buffer[4];
+volatile uint8_t pstorage_ready = 0;
+static pstorage_block_t pstorage_wait_handle = 0;
 
-void flash_cb_handler(uint32_t sd_evt)
+void flash_cb_handler(pstorage_handle_t *handle, uint8_t op_code, uint32_t result, uint8_t *p_data,
+		              uint32_t data_len)
 {
-	SEGGER_RTT_printf(0,"SD Evt %d\n",sd_evt == NRF_EVT_FLASH_OPERATION_SUCCESS ? 1 : 0 );
-	flash_wait=0;
+	SEGGER_RTT_printf(0,"Flash Opcode %d, Result %d\n",op_code, result);
+
+	switch(op_code)
+	{
+		case PSTORAGE_CLEAR_OP_CODE:
+			if(pstorage_wait_handle == handle->block_id)
+				pstorage_ready=0;
+			break;
+		default:
+			break;
+
+	}
 }
-
-
 
 void read_device_configuration(sdl_config_t *config)
 {
+	uint32_t err_code;
+	pstorage_module_param_t param;
+	pstorage_handle_t block_handle;
 
-	uint32_t *addr;
-	addr = (uint32_t *)(BLE_FLASH_PAGE_END * NRF_FICR->CODEPAGESIZE);
-	config->value_handle=(uint16_t) *addr;
-	SEGGER_RTT_printf(0,"Listen Value = %x\n",config->value_handle);
+	param.block_count=1;
+	param.block_size=BLOCK_SIZE;
+	param.cb=flash_cb_handler;
+
+	err_code=pstorage_register(&param,&(config->pstorage_handle));
+	APP_ERROR_CHECK(err_code);
+
+	err_code=pstorage_block_identifier_get(&(config->pstorage_handle),0,&block_handle);
+	APP_ERROR_CHECK(err_code);
+
+	err_code=pstorage_load(data_buffer,&block_handle,4,0);
+	APP_ERROR_CHECK(err_code);
+
+	config->value_handle=*((uint16_t *)data_buffer);
+	SEGGER_RTT_printf(0,"Listen Value = %x, Addr = %x\n",config->value_handle,block_handle.block_id);
 
 	nrf_gpio_cfg_input(DEVICE_TYPE_0,NRF_GPIO_PIN_PULLDOWN);
 	nrf_gpio_cfg_input(DEVICE_TYPE_1,NRF_GPIO_PIN_PULLDOWN);
@@ -41,45 +70,33 @@ void read_device_configuration(sdl_config_t *config)
 
 	config->device_type=nrf_gpio_pin_read(DEVICE_TYPE_0)|nrf_gpio_pin_read(DEVICE_TYPE_1)<<1|nrf_gpio_pin_read(DEVICE_TYPE_2)<<2;
 	SEGGER_RTT_printf(0,"Device Type = %x\n",config->device_type);
+
 }
 
 void write_value_handle(sdl_config_t *config)
 {
 	uint32_t err_code;
+	pstorage_handle_t block_handle;
 
-	flash_wait = 1;
-	err_code = sd_flash_page_erase(BLE_FLASH_PAGE_END);
+	err_code=pstorage_block_identifier_get(&(config->pstorage_handle),0,&block_handle);
 	APP_ERROR_CHECK(err_code);
-	SEGGER_RTT_printf(0,"sd_flash %x\n",err_code);
-	while(flash_wait)
-	{
-		sd_app_evt_wait();
-		app_sched_execute();
 
-	}
+	uint8_t *b =(uint8_t *)(&config->value_handle);
 
+	pstorage_wait_handle=block_handle.block_id;
+	pstorage_ready=1;
 
-	flash_wait = 1;
-	uint32_t new_value= config->value_handle;
-	SEGGER_RTT_printf(0,"After Wait %x\n",new_value);
+	SEGGER_RTT_printf(0,"Block ID %x\n", block_handle.block_id);
 
-	uint32_t *addr;
-	addr = (uint32_t *)(BLE_FLASH_PAGE_END * NRF_FICR->CODEPAGESIZE);
-
-	err_code = sd_flash_write(addr,&new_value,1);
+	err_code=pstorage_clear(&block_handle,BLOCK_SIZE);
 	APP_ERROR_CHECK(err_code);
-	SEGGER_RTT_printf(0,"sd_write_flash %x\n",err_code);
-	while(flash_wait)
+	while(pstorage_ready)
 	{
 		sd_app_evt_wait();
 		app_sched_execute();
 	}
-
-
-	for (int n=0;n<10;n++)
-	{
-		SEGGER_RTT_printf(0,"Addr %x = %x\n",addr+n,*(addr+n));
-	}
+	err_code=pstorage_store(&block_handle, b,4,0);
+	APP_ERROR_CHECK(err_code);
 
 }
 

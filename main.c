@@ -17,6 +17,7 @@
 #include "nrf_gpio.h"
 #include "ble_advdata.h"
 #include "ble_hci.h"
+#include "ble_srv_common.h"
 #include "nrf_delay.h"
 #include "ble_dfu.h"
 #include "dfu_app_handler.h"
@@ -228,7 +229,7 @@ static void services_init(void)
 	uint32_t err_code;
 
 	sdl_service_init(&sdl_service);
-	sdl_service_char_init(&sdl_service);
+	sdl_service_char_init(&sdl_service,&device_config);
 
 	// Initialize DFU Services
 	ble_dfu_init_t   dfus_init;
@@ -242,7 +243,7 @@ static void services_init(void)
     err_code = ble_dfu_init(&m_dfus, &dfus_init);
     APP_ERROR_CHECK(err_code);
     dfu_app_reset_prepare_set(reset_prepare);
-
+    dfu_app_dm_appl_instance_set(dm_handle);
 }
 
 
@@ -289,6 +290,7 @@ static void device_manager_init()
     err_code = dm_init(&init_param);
     APP_ERROR_CHECK(err_code);
 
+
     memset(&register_param.sec_param, 0, sizeof(ble_gap_sec_params_t));
 
     register_param.sec_param.bond = 1;						/**< Perform bonding. */
@@ -303,6 +305,7 @@ static void device_manager_init()
 
     err_code = dm_register(&dm_handle, &register_param);
     APP_ERROR_CHECK(err_code);
+
 }
 
 /* ------------------------------------------Event Handlers------------------------------------------------------------ */
@@ -376,11 +379,14 @@ static void ble_gatts_event_handler(ble_evt_t* evt)
         break;
 
     case BLE_GATTS_EVT_WRITE:
-    	value = evt->evt.gatts_evt.params.write.data[0] << 8 | evt->evt.gatts_evt.params.write.data[1];
-    	SEGGER_RTT_printf(0,"GATTS Write Handle %x Data %x Len %x\n",evt->evt.gatts_evt.params.write.handle,
-    			value,evt->evt.gatts_evt.params.write.len);
-    	device_config.value_handle=value;
-    	write_value_handle(&device_config);
+    	if(evt->evt.gatts_evt.params.write.handle == sdl_service.char_handles.value_handle)
+    	{
+			value = evt->evt.gatts_evt.params.write.data[0] << 8 | evt->evt.gatts_evt.params.write.data[1];
+			SEGGER_RTT_printf(0,"GATTS Write Handle %x Data %x Len %x\n",evt->evt.gatts_evt.params.write.handle,
+					value,evt->evt.gatts_evt.params.write.len);
+			device_config.value_handle=value;
+			write_value_handle(&device_config);
+    	}
         break;
 
     default:
@@ -390,7 +396,7 @@ static void ble_gatts_event_handler(ble_evt_t* evt)
 
 static void ble_gap_event_handler(ble_evt_t* evt)
 {
-	uint32_t err_code;
+//	uint32_t err_code;
 
     switch (evt->header.evt_id)
     {
@@ -403,10 +409,10 @@ static void ble_gap_event_handler(ble_evt_t* evt)
         sd_ble_gap_adv_start(&ble_adv_params);
         break;
 
-    case BLE_GAP_EVT_SEC_PARAMS_REQUEST:
-        err_code = sd_ble_gap_sec_params_reply(sdl_service.conn_handle, BLE_GAP_SEC_STATUS_PAIRING_NOT_SUPP, NULL, NULL);
-        APP_ERROR_CHECK(err_code);
-          break;
+//    case BLE_GAP_EVT_SEC_PARAMS_REQUEST:
+//        err_code = sd_ble_gap_sec_params_reply(sdl_service.conn_handle, BLE_GAP_SEC_STATUS_PAIRING_NOT_SUPP, NULL, NULL);
+//        APP_ERROR_CHECK(err_code);
+//          break;
 
     case BLE_GAP_EVT_CONN_SEC_UPDATE:
         break;
@@ -474,16 +480,13 @@ void sd_ble_evt_handler(ble_evt_t* p_ble_evt)
     rbc_mesh_ble_evt_handler(p_ble_evt);
     ble_dfu_on_ble_evt(&m_dfus, p_ble_evt);
     nrf_adv_conn_evt_handler(p_ble_evt);
+    dm_ble_evt_handler(p_ble_evt);
 }
 
 
 void sys_evt_handler(uint32_t sd_evt)
 {
-	if(sd_evt == NRF_EVT_FLASH_OPERATION_SUCCESS ||
-	       sd_evt == NRF_EVT_FLASH_OPERATION_ERROR)
-	    {
-	        flash_cb_handler(sd_evt);
-	    }
+	pstorage_sys_event_handler(sd_evt);
 	rbc_mesh_sd_evt_handler(sd_evt);
 }
 
@@ -491,11 +494,13 @@ int main(void)
 {
 	SEGGER_RTT_WriteString(0,"Starting...\n");
 
-    read_device_configuration(&device_config);
     timers_init();
 	ble_stack_init();
+
+	/* Device Manger must be initialized before read_device_config because pstorage is init'd in dm_init */
 	device_manager_init();
 	gap_params_init();
+    read_device_configuration(&device_config);
 	mesh_init();
 	hw_init();
     services_init();
