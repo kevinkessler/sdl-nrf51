@@ -32,6 +32,7 @@
 #include "include/sdl_service.h"
 #include "include/sdl_power_with_ip.h"
 #include "include/sdl_switch.h"
+#include "include/sdl_power.h"
 
 #include "SEGGER_RTT.h"
 
@@ -212,10 +213,15 @@ static void mesh_init(void)
 
 static void hw_init(void)
 {
+
 	switch (device_config.device_type)
 	{
 	case DEVICE_SWITCH:
 		switch_init();
+		break;
+	case DEVICE_POWER:
+	case DEVICE_POWER_WITH_BUTTON:
+		power_init();
 		break;
 	case DEVICE_POWER_WITH_IP:
 		power_with_ip_init();
@@ -442,6 +448,14 @@ static void rbc_mesh_event_handler(rbc_mesh_event_t* p_evt)
         	if(device_config.device_type==DEVICE_POWER_WITH_IP)
         	{
         		power_with_ip_update_val(p_evt,&device_config);
+        	}
+        	else if(device_config.device_type==DEVICE_POWER)
+        	{
+        		power_update_val(p_evt, &device_config);
+        	}
+        	else if(device_config.device_type==DEVICE_POWER_WITH_BUTTON)
+        	{
+        		power_update_val(p_evt, &device_config);
         	}
         	break;
         case RBC_MESH_EVENT_TYPE_TX:

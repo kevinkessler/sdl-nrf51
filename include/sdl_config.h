@@ -23,6 +23,7 @@
 #define DEVICE_POWER 1
 #define DEVICE_POWER_WITH_IP 2
 #define DEVICE_BUTTON 3
+#define DEVICE_POWER_WITH_BUTTON 4
 
 typedef struct {
 	pstorage_handle_t pstorage_handle;

@@ -37,7 +37,7 @@ else
 	LINKER_SCRIPT := ./gcc_nrf51_s110_xxac_dfu.ld
 endif
 
-LINKER_SCRIPT := ./gcc_nrf51_s110_xxac_dfu.ld
+LINKER_SCRIPT := ./gcc_nrf51_s110_xxac.ld
 
 ifeq ($(USE_RBC_MESH_SERIAL), "yes")
 	SERIAL_STRING := "_serial"
@@ -108,6 +108,7 @@ C_SOURCE_FILES += sdl_service.c
 C_SOURCE_FILES += sdl_config.c
 C_SOURCE_FILES += sdl_power_with_ip.c
 C_SOURCE_FILES += sdl_switch.c
+C_SOURCE_FILES += sdl_power.c
 C_SOURCE_FILES += RTT/SEGGER_RTT.c
 C_SOURCE_FILES += RTT/SEGGER_RTT_printf.c
 
