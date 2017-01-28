@@ -109,6 +109,7 @@ C_SOURCE_FILES += sdl_config.c
 C_SOURCE_FILES += sdl_power_with_ip.c
 C_SOURCE_FILES += sdl_switch.c
 C_SOURCE_FILES += sdl_power.c
+C_SOURCE_FILES += sdl_button.c
 C_SOURCE_FILES += RTT/SEGGER_RTT.c
 C_SOURCE_FILES += RTT/SEGGER_RTT_printf.c
 
@@ -335,8 +336,8 @@ flash_softdevice:
 
 flash:
 #	$(NO_ECHO)$(OPENOCD) -s $(OPENOCD_BASE)/scripts -f interface/stlink-v2.cfg -f target/nrf51.cfg -c "program $(OUTPUT_BINARY_DIRECTORY)/$(OUTPUT_NAME).hex verify reset exit"
-#	$(NO_ECHO) $(NRFJPROG) --erasepage 0x00000-0x3fc00
-	$(NO_ECHO) $(NRFJPROG) --eraseall
+	$(NO_ECHO) $(NRFJPROG) --erasepage 0x00000-0x3f800
+#	$(NO_ECHO) $(NRFJPROG) --eraseall
 	$(NO_ECHO) $(NRFJPROG) --program $(COMPONENTS)/softdevice/s110/hex/s110_softdevice.hex
 	$(NO_ECHO) $(NRFJPROG) --program $(OUTPUT_BINARY_DIRECTORY)/$(OUTPUT_NAME).hex
 	$(NO_ECHO) $(NRFJPROG) --reset

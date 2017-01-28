@@ -26,8 +26,18 @@
 #define DEVICE_POWER_WITH_BUTTON 4
 
 typedef struct {
+	uint16_t power_value_1;
+	uint16_t power_value_2;
+	uint16_t switch_value_1;
+	uint16_t switch_value_2;
+	uint16_t button_value_1;
+	uint16_t button_value_2;
+	uint16_t powerip_value;
+}mesh_values_t;
+
+typedef struct {
 	pstorage_handle_t pstorage_handle;
-	uint16_t value_handle;
+	mesh_values_t values;
 	uint8_t device_type;
 }sdl_config_t;
 

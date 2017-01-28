@@ -8,7 +8,7 @@
  */
 
 #include "include/sdl_config.h"
-
+#include <string.h>
 #include <stdint.h>
 #include "app_error.h"
 #include "app_scheduler.h"
@@ -58,11 +58,12 @@ void read_device_configuration(sdl_config_t *config)
 	err_code=pstorage_block_identifier_get(&(config->pstorage_handle),0,&block_handle);
 	APP_ERROR_CHECK(err_code);
 
-	err_code=pstorage_load(data_buffer,&block_handle,4,0);
+	err_code=pstorage_load(data_buffer,&block_handle,sizeof(mesh_values_t),0);
 	APP_ERROR_CHECK(err_code);
 
-	config->value_handle=*((uint16_t *)data_buffer);
-	SEGGER_RTT_printf(0,"Listen Value = %x, Addr = %x\n",config->value_handle,block_handle.block_id);
+	memcpy((void *)&config->values,data_buffer,sizeof(mesh_values_t));
+	//config->values=*((mesh_values_t *)data_buffer);
+	SEGGER_RTT_printf(0,"Listen Value = %x, Addr = %x\n",config->values.power_value_1,block_handle.block_id);
 
 	nrf_gpio_cfg_input(DEVICE_TYPE_0,NRF_GPIO_PIN_PULLDOWN);
 	nrf_gpio_cfg_input(DEVICE_TYPE_1,NRF_GPIO_PIN_PULLDOWN);
@@ -81,7 +82,7 @@ void write_value_handle(sdl_config_t *config)
 	err_code=pstorage_block_identifier_get(&(config->pstorage_handle),0,&block_handle);
 	APP_ERROR_CHECK(err_code);
 
-	uint8_t *b =(uint8_t *)(&config->value_handle);
+	uint8_t *b =(uint8_t *)(&config->values);
 
 	pstorage_wait_handle=block_handle.block_id;
 	pstorage_ready=1;
@@ -95,7 +96,7 @@ void write_value_handle(sdl_config_t *config)
 		sd_app_evt_wait();
 		app_sched_execute();
 	}
-	err_code=pstorage_store(&block_handle, b,4,0);
+	err_code=pstorage_store(&block_handle, b,sizeof(mesh_values_t),0);
 	APP_ERROR_CHECK(err_code);
 
 }

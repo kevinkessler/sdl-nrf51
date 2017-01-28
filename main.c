@@ -33,6 +33,7 @@
 #include "include/sdl_power_with_ip.h"
 #include "include/sdl_switch.h"
 #include "include/sdl_power.h"
+#include "include/sdl_button.h"
 
 #include "SEGGER_RTT.h"
 
@@ -213,29 +214,38 @@ static void mesh_init(void)
 
 static void hw_init(void)
 {
+	sdl_service_init(&sdl_service);
 
-	switch (device_config.device_type)
+	if(device_config.device_type==DEVICE_SWITCH)
 	{
-	case DEVICE_SWITCH:
-		switch_init();
-		break;
-	case DEVICE_POWER:
-	case DEVICE_POWER_WITH_BUTTON:
-		power_init();
-		break;
-	case DEVICE_POWER_WITH_IP:
-		power_with_ip_init();
-		break;
+		switch_init(&sdl_service,&device_config);
 	}
+
+	if((device_config.device_type==DEVICE_POWER)||
+	   (device_config.device_type==DEVICE_POWER_WITH_BUTTON))
+	{
+		power_init(&sdl_service,&device_config);
+	}
+
+	if((device_config.device_type==DEVICE_BUTTON)||
+	   (device_config.device_type==DEVICE_POWER_WITH_BUTTON))
+	{
+		button_init(&sdl_service,&device_config);
+	}
+
+	if(device_config.device_type==DEVICE_POWER_WITH_IP)
+	{
+		power_with_ip_init(&sdl_service,&device_config);
+	}
+
 
 }
 
-static void services_init(void)
+static void dfu_init(void)
 {
 	uint32_t err_code;
 
-	sdl_service_init(&sdl_service);
-	sdl_service_char_init(&sdl_service,&device_config);
+
 
 	// Initialize DFU Services
 	ble_dfu_init_t   dfus_init;
@@ -373,7 +383,6 @@ static void app_context_load(dm_handle_t const * p_handle)
 
 static void ble_gatts_event_handler(ble_evt_t* evt)
 {
-	uint16_t value;
 
     switch (evt->header.evt_id)
     {
@@ -385,14 +394,9 @@ static void ble_gatts_event_handler(ble_evt_t* evt)
         break;
 
     case BLE_GATTS_EVT_WRITE:
-    	if(evt->evt.gatts_evt.params.write.handle == sdl_service.char_handles.value_handle)
-    	{
-			value = evt->evt.gatts_evt.params.write.data[0] << 8 | evt->evt.gatts_evt.params.write.data[1];
-			SEGGER_RTT_printf(0,"GATTS Write Handle %x Data %x Len %x\n",evt->evt.gatts_evt.params.write.handle,
-					value,evt->evt.gatts_evt.params.write.len);
-			device_config.value_handle=value;
-			write_value_handle(&device_config);
-    	}
+    	if(evt->evt.gatts_evt.conn_handle==sdl_service.conn_handle)
+    		sdl_service_handle_write(evt, &sdl_service, &device_config);
+
         break;
 
     default:
@@ -440,11 +444,13 @@ static void ble_gap_event_handler(ble_evt_t* evt)
 static void rbc_mesh_event_handler(rbc_mesh_event_t* p_evt)
 {
 
+	SEGGER_RTT_printf(0,"Mesh Event %x\n",p_evt->type);
     switch (p_evt->type)
     {
         case RBC_MESH_EVENT_TYPE_CONFLICTING_VAL:
         case RBC_MESH_EVENT_TYPE_NEW_VAL:
         case RBC_MESH_EVENT_TYPE_UPDATE_VAL:
+        case RBC_MESH_EVENT_TYPE_TX:
         	if(device_config.device_type==DEVICE_POWER_WITH_IP)
         	{
         		power_with_ip_update_val(p_evt,&device_config);
@@ -458,7 +464,6 @@ static void rbc_mesh_event_handler(rbc_mesh_event_t* p_evt)
         		power_update_val(p_evt, &device_config);
         	}
         	break;
-        case RBC_MESH_EVENT_TYPE_TX:
         case RBC_MESH_EVENT_TYPE_INITIALIZED:
         case RBC_MESH_EVENT_TYPE_DFU_NEW_FW_AVAILABLE:
         	// Do some DFU Stuff
@@ -517,8 +522,8 @@ int main(void)
     read_device_configuration(&device_config);
 	mesh_init();
 	hw_init();
-    services_init();
-    advertising_init();
+	dfu_init();
+	advertising_init();
     rbc_mesh_event_t evt;
 
     while (true)
