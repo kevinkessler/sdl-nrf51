@@ -18,16 +18,19 @@
 #include "include/sdl_button.h"
 #include "SEGGER_RTT.h"
 
-//static app_timer_id_t button_delay_timer_id;
+static app_timer_id_t button_delay_timer_id;
+static volatile uint8_t button_disable=false;
 extern sdl_config_t device_config;
 
-static void button_timer_handler(void *p_event_data, uint16_t event_size)
+
+static void button_handler(void *p_event_data, uint16_t event_size)
 {
 //	SEGGER_RTT_WriteString(0,"Timer...\n");
 
 	uint8_t mesh_data[23];
 	uint16_t length;
 
+	nrf_gpio_pin_clear(9);
 	rbc_mesh_value_get(device_config.values.button_value_1,mesh_data,&length);
 
 	SEGGER_RTT_printf(0,"Value Handle %x Mesh Value %x \n", device_config.values.button_value_1,mesh_data[0]);
@@ -36,18 +39,29 @@ static void button_timer_handler(void *p_event_data, uint16_t event_size)
 	rbc_mesh_value_set(device_config.values.button_value_1,mesh_data,1);
 }
 
+static void button_timer_handler(void *p_context)
+{
+	button_disable=false;
+}
+
 static void gpiote_event_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
-//	SEGGER_RTT_WriteString(0,"Button Event...\n");
-	app_sched_event_put(NULL, 0, button_timer_handler);
-//	app_timer_stop(button_delay_timer_id);
-//	app_timer_start(button_delay_timer_id,APP_TIMER_TICKS(50, APP_TIMER_PRESCALER),NULL);
+	if(button_disable == true)
+		return;
+
+	button_disable=true;
+	nrf_gpio_pin_set(9);
+	app_sched_event_put(NULL, 0, button_handler);
+	app_timer_stop(button_delay_timer_id);
+	app_timer_start(button_delay_timer_id,APP_TIMER_TICKS(1000, APP_TIMER_PRESCALER),NULL);
 }
 
 void button_init(ble_sdl_service_t *sdl_service, sdl_config_t *config)
 {
     uint32_t err_code;
 
+    nrf_gpio_cfg_output(9);
+    nrf_gpio_pin_clear(9);
     rbc_mesh_value_enable(config->values.button_value_1);
     rbc_mesh_persistence_set(config->values.button_value_1, true);
     rbc_mesh_tx_event_set(config->values.button_value_1, true);
@@ -63,10 +77,10 @@ void button_init(ble_sdl_service_t *sdl_service, sdl_config_t *config)
     err_code = nrf_drv_gpiote_in_init(BUTTON_PIN, &pin_config, gpiote_event_handler);
     APP_ERROR_CHECK(err_code);
 
-/*    err_code = app_timer_create(&button_delay_timer_id,
+    err_code = app_timer_create(&button_delay_timer_id,
                                     APP_TIMER_MODE_SINGLE_SHOT,
-                                    button_timer_handler); */
-//    APP_ERROR_CHECK(err_code);
+                                    button_timer_handler);
+    APP_ERROR_CHECK(err_code);
 
     nrf_drv_gpiote_in_event_enable(BUTTON_PIN,true);
     APP_ERROR_CHECK(err_code);

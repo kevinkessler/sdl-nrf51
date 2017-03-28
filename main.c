@@ -28,6 +28,8 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "nrf_drv_gpiote.h"
+
 #include "include/sdl_config.h"
 #include "include/sdl_service.h"
 #include "include/sdl_power_with_ip.h"
@@ -138,7 +140,8 @@ static void reset_prepare(void)
 /* ------------------------------------------Initialization Routines------------------------------------------------------------ */
 static void timers_init(void)
 {
-	    APP_TIMER_INIT(APP_TIMER_PRESCALER, APP_TIMER_MAX_TIMERS, APP_TIMER_OP_QUEUE_SIZE, false);
+//	    APP_TIMER_INIT(APP_TIMER_PRESCALER, APP_TIMER_MAX_TIMERS, APP_TIMER_OP_QUEUE_SIZE, false);
+	APP_TIMER_APPSH_INIT(APP_TIMER_PRESCALER,APP_TIMER_MAX_TIMERS,APP_TIMER_OP_QUEUE_SIZE, true);
 }
 
 static void ble_stack_init(void)
@@ -529,7 +532,6 @@ int main(void)
     while (true)
     {
     	app_sched_execute();
-
         if (rbc_mesh_event_get(&evt) == NRF_SUCCESS)
         {
             rbc_mesh_event_handler(&evt);

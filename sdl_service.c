@@ -12,6 +12,7 @@
 #include "include/sdl_service.h"
 #include "ble_srv_common.h"
 #include "app_error.h"
+#include "rbc_mesh.h"
 #include "SEGGER_RTT.h"
 
 void sdl_service_handle_write(ble_evt_t *evt, ble_sdl_service_t *sdl_service, sdl_config_t *device_config)
@@ -22,8 +23,13 @@ void sdl_service_handle_write(ble_evt_t *evt, ble_sdl_service_t *sdl_service, sd
 
 	if(evt->evt.gatts_evt.params.write.handle == sdl_service->button_1_handle.value_handle)
 	{
+	    rbc_mesh_persistence_set(device_config->values.button_value_1, false);
+	    rbc_mesh_tx_event_set(device_config->values.button_value_1, false);
 		device_config->values.button_value_1=value;
 		write_value_handle(device_config);
+	    rbc_mesh_value_enable(device_config->values.button_value_1);
+	    rbc_mesh_persistence_set(device_config->values.button_value_1, true);
+	    rbc_mesh_tx_event_set(device_config->values.button_value_1, true);
 	}
 	else if(evt->evt.gatts_evt.params.write.handle == sdl_service->switch_1_handle.value_handle)
 	{
